@@ -1,0 +1,56 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --color-primary: #1e1e1e;
+  --color-primary-dark: #1a1a1a;
+  --color-secondary: #2c2c2c;
+  --color-secondary-dark: #282828;
+  --color-text-primary: #ffffff;
+  --color-text-secondary: #a0a0a0;
+  --color-border: #404040;
+  --color-accent-green: #66bb6a;
+  --color-accent-blue: #2196f3;
+  --color-accent-gold: #ffa000;
+}
+
+body {
+  background-color: var(--color-primary);
+  color: var(--color-text-primary);
+}
+
+/* GraphiQL dark theme overrides */
+.graphiql-container,
+.graphiql-session-header,
+.graphiql-editor,
+.codemirror,
+.CodeMirror {
+  background-color: var(--color-secondary) !important;
+}
+
+.graphiql-container .graphiql-session-header {
+  background-color: var(--color-secondary-dark) !important;
+  border-color: var(--color-border) !important;
+}
+
+.graphiql-container .CodeMirror-gutters {
+  background-color: var(--color-primary) !important;
+  border-color: var(--color-border) !important;
+}
+
+.graphiql-container .cm-editor {
+  background-color: var(--color-secondary) !important;
+}
+
+/* Execute button prominence */
+.graphiql-container button[aria-label='Run query'],
+.graphiql-container .graphiql-execute-button {
+  background-color: var(--color-accent-green) !important;
+  color: white !important;
+}
+
+.graphiql-container button[aria-label='Run query']:hover,
+.graphiql-container .graphiql-execute-button:hover {
+  background-color: #388e3c !important;
+}
