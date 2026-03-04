@@ -1,6 +1,7 @@
 {
   "name": "graphql-playground-lite",
   "version": "0.1.0",
+  "description": "Lightweight local GraphQL playground with schema introspection and one-click operations—no manual query writing",
   "private": false,
   "scripts": {
     "dev": "next dev -p 3030",
