@@ -1,9 +1,8 @@
 'use client'
 
 import { Save, Trash2 } from 'lucide-react'
-import { useState, useEffect } from 'react'
 
-import { getEndpoints, saveEndpoints, getToken, saveToken } from '@/lib/storage'
+import { useEndpointManager } from '@/hooks/useEndpointManager'
 import type { Endpoint } from '@/lib/types'
 
 const inputBase =
@@ -23,60 +22,37 @@ export default function EndpointManager({
   isLoading,
   error,
 }: EndpointManagerProps) {
-  const [endpoints, setEndpoints] = useState<Endpoint[]>([])
-  const [newUrl, setNewUrl] = useState('')
-  const [newName, setNewName] = useState('')
-  const [token, setToken] = useState('')
-  const [selectedId, setSelectedId] = useState<string | null>(null)
-
-  useEffect(() => {
-    setEndpoints(getEndpoints())
-    setToken(getToken())
-  }, [])
-
-  const handleAddEndpoint = () => {
-    const trimmed = newUrl.trim()
-    if (!trimmed) return
-    const id = crypto.randomUUID()
-    const endpoint: Endpoint = {
-      id,
-      url: trimmed,
-      name: newName.trim() || undefined,
-    }
-    const updated = [...endpoints, endpoint]
-    setEndpoints(updated)
-    saveEndpoints(updated)
-    setSelectedId(id)
-    setNewUrl('')
-    setNewName('')
-  }
-
-  const handleRemoveEndpoint = (id: string) => {
-    const updated = endpoints.filter((e) => e.id !== id)
-    setEndpoints(updated)
-    saveEndpoints(updated)
-    if (selectedId === id) setSelectedId(null)
-  }
-
-  const handleTokenChange = (value: string) => {
-    setToken(value)
-    saveToken(value)
-  }
-
-  const handleConnect = () => {
-    const endpoint = selectedId
-      ? endpoints.find((e) => e.id === selectedId)
-      : endpoints[0]
-    if (endpoint) onConnect(endpoint, token)
-  }
-
-  const selectedEndpoint = selectedId
-    ? endpoints.find((e) => e.id === selectedId)
-    : endpoints[0]
+  const {
+    endpoints,
+    newUrl,
+    setNewUrl,
+    newName,
+    setNewName,
+    token,
+    selectedId,
+    setSelectedId,
+    authMode,
+    setAuthMode,
+    authUrl,
+    setAuthUrl,
+    email,
+    setEmail,
+    password,
+    setPassword,
+    deviceId,
+    setDeviceId,
+    platform,
+    setPlatform,
+    selectedEndpoint,
+    handleAddEndpoint,
+    handleRemoveEndpoint,
+    handleTokenChange,
+    handleConnect,
+    tabClass,
+  } = useEndpointManager(onConnect)
 
   return (
     <div className="flex flex-col gap-6">
-      {/* Add GraphQL URL */}
       <section className={cardBase}>
         <h2 className="mb-4 text-sm font-semibold uppercase tracking-wider text-text-secondary">
           Add GraphQL URL
@@ -119,7 +95,7 @@ export default function EndpointManager({
           <button
             type="button"
             onClick={handleAddEndpoint}
-            className="inline-flex w-fit items-center gap-2 rounded-md bg-accent-blue px-4 py-2.5 font-medium text-white hover:bg-accent-blue-dark transition-colors"
+            className="inline-flex w-fit items-center gap-2 rounded-md bg-accent-blue px-4 py-2.5 font-medium text-white transition-colors hover:bg-accent-blue-dark"
             aria-label="Add endpoint"
           >
             <Save className="h-4 w-4" />
@@ -128,7 +104,6 @@ export default function EndpointManager({
         </div>
       </section>
 
-      {/* Connect GraphQL */}
       <section className={cardBase}>
         <h2 className="mb-4 text-sm font-semibold uppercase tracking-wider text-text-secondary">
           Connect GraphQL
@@ -163,7 +138,7 @@ export default function EndpointManager({
                       onClick={() =>
                         handleRemoveEndpoint(selectedEndpoint.id)
                       }
-                      className="inline-flex shrink-0 items-center gap-2 rounded-md border border-border bg-secondary-dark px-3 py-2.5 text-sm text-text-secondary hover:border-red-500/50 hover:bg-red-500/10 hover:text-red-400 transition-colors"
+                      className="inline-flex shrink-0 items-center gap-2 rounded-md border border-border bg-secondary-dark px-3 py-2.5 text-sm text-text-secondary transition-colors hover:border-red-500/50 hover:bg-red-500/10 hover:text-red-400"
                       aria-label={`Remove ${selectedEndpoint.name ?? selectedEndpoint.url}`}
                     >
                       <Trash2 className="h-4 w-4" />
@@ -172,28 +147,146 @@ export default function EndpointManager({
                   )}
                 </div>
               </div>
+
               <div className="flex flex-col gap-1.5">
-                <label
-                  htmlFor="token"
-                  className="text-sm font-medium text-text-secondary"
-                >
-                  Access token (optional)
-                </label>
-                <input
-                  id="token"
-                  type="password"
-                  value={token}
-                  onChange={(e) => handleTokenChange(e.target.value)}
-                  placeholder="Bearer token"
-                  className={inputBase}
-                  aria-label="Access token"
-                />
+                <span className="text-sm font-medium text-text-secondary">
+                  Authentication
+                </span>
+                <div className="flex gap-1 rounded-lg bg-secondary-dark p-1">
+                  <button
+                    type="button"
+                    onClick={() => setAuthMode('manual')}
+                    className={tabClass(authMode === 'manual')}
+                    aria-label="Manual token mode"
+                  >
+                    Manual Token
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setAuthMode('auto')}
+                    className={tabClass(authMode === 'auto')}
+                    aria-label="Auto-login mode"
+                  >
+                    Auto-Login
+                  </button>
+                </div>
               </div>
+
+              {authMode === 'manual' ? (
+                <div className="flex flex-col gap-1.5">
+                  <label
+                    htmlFor="token"
+                    className="text-sm font-medium text-text-secondary"
+                  >
+                    Access token (optional)
+                  </label>
+                  <input
+                    id="token"
+                    type="password"
+                    value={token}
+                    onChange={(e) => handleTokenChange(e.target.value)}
+                    placeholder="Bearer token"
+                    className={inputBase}
+                    aria-label="Access token"
+                  />
+                </div>
+              ) : (
+                <div className="flex flex-col gap-3 rounded-lg border border-border bg-primary/50 p-4">
+                  <div className="flex flex-col gap-1.5">
+                    <label
+                      htmlFor="auth-url"
+                      className="text-sm font-medium text-text-secondary"
+                    >
+                      Auth URL
+                    </label>
+                    <input
+                      id="auth-url"
+                      type="url"
+                      value={authUrl}
+                      onChange={(e) => setAuthUrl(e.target.value)}
+                      placeholder="http://localhost:3010/auth/login"
+                      className={inputBase}
+                      aria-label="Authentication URL"
+                    />
+                  </div>
+                  <div className="flex flex-col gap-1.5">
+                    <label
+                      htmlFor="auth-email"
+                      className="text-sm font-medium text-text-secondary"
+                    >
+                      Email
+                    </label>
+                    <input
+                      id="auth-email"
+                      type="email"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      placeholder="user@example.com"
+                      className={inputBase}
+                      aria-label="Login email"
+                    />
+                  </div>
+                  <div className="flex flex-col gap-1.5">
+                    <label
+                      htmlFor="auth-password"
+                      className="text-sm font-medium text-text-secondary"
+                    >
+                      Password
+                    </label>
+                    <input
+                      id="auth-password"
+                      type="password"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      placeholder="Password"
+                      className={inputBase}
+                      aria-label="Login password"
+                    />
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="flex flex-col gap-1.5">
+                      <label
+                        htmlFor="auth-device-id"
+                        className="text-sm font-medium text-text-secondary"
+                      >
+                        Device ID
+                      </label>
+                      <input
+                        id="auth-device-id"
+                        type="text"
+                        value={deviceId}
+                        onChange={(e) => setDeviceId(e.target.value)}
+                        placeholder="playground-device"
+                        className={inputBase}
+                        aria-label="Device ID"
+                      />
+                    </div>
+                    <div className="flex flex-col gap-1.5">
+                      <label
+                        htmlFor="auth-platform"
+                        className="text-sm font-medium text-text-secondary"
+                      >
+                        Platform
+                      </label>
+                      <input
+                        id="auth-platform"
+                        type="text"
+                        value={platform}
+                        onChange={(e) => setPlatform(e.target.value)}
+                        placeholder="web"
+                        className={inputBase}
+                        aria-label="Platform"
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
+
               <button
                 type="button"
                 onClick={handleConnect}
                 disabled={!selectedEndpoint || isLoading}
-                className="inline-flex w-fit items-center gap-2 rounded-md bg-accent-green px-4 py-2.5 font-medium text-white hover:bg-accent-green-dark disabled:opacity-50 transition-colors"
+                className="inline-flex w-fit items-center gap-2 rounded-md bg-accent-green px-4 py-2.5 font-medium text-white transition-colors hover:bg-accent-green-dark disabled:opacity-50"
                 aria-label="Connect and load schema"
               >
                 {isLoading ? 'Connecting...' : 'Connect'}

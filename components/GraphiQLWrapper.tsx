@@ -2,94 +2,51 @@
 
 import { GraphiQL } from 'graphiql'
 import 'graphiql/style.css'
-import {
-  buildClientSchema,
-  type IntrospectionQuery,
-  parse,
-  print,
-} from 'graphql'
-import { useMemo, useState, useCallback } from 'react'
 
+import { useGraphiQL } from '@/hooks/useGraphiQL'
 import type { GeneratedOperation } from '@/lib/types'
+import { RequestTimingProvider, useRequestTiming } from '@/providers'
 
+import { GraphiQLToolbarAddons } from './GraphiQLToolbarAddons'
 import OperationExplorer from './OperationExplorer'
 
-interface GraphiQLWrapperProps {
+type GraphiQLWrapperProps = {
   endpoint: string
+  endpointId: string
   token: string
   schema: unknown
   operations: GeneratedOperation[]
   isConnected: boolean
 }
 
-const DEFAULT_QUERY = `# Click an operation in the sidebar to add it here
-# Or write your own query`
-
-export default function GraphiQLWrapper({
+function GraphiQLWrapperInner({
   endpoint,
+  endpointId,
   token,
   schema,
   operations,
   isConnected,
 }: GraphiQLWrapperProps) {
-  const [editorKey, setEditorKey] = useState(0)
-  const [defaultQuery, setDefaultQuery] = useState(DEFAULT_QUERY)
-  const [defaultVariables, setDefaultVariables] = useState('')
-  const [showVariablesPanel, setShowVariablesPanel] = useState(false)
-
-  const handleAddOperation = useCallback((op: GeneratedOperation) => {
-    let formattedQuery = op.query
-    try {
-      formattedQuery = print(parse(op.query))
-    } catch {
-      // keep original if parse fails
-    }
-    setDefaultQuery(formattedQuery)
-    const hasVariables = Object.keys(op.variables).length > 0
-    setDefaultVariables(
-      hasVariables ? JSON.stringify(op.variables, null, 2) : ''
-    )
-    setShowVariablesPanel(hasVariables)
-    setEditorKey((k) => k + 1)
-  }, [])
-  const graphqlSchema = useMemo(() => {
-    if (!schema || typeof schema !== 'object') return undefined
-    try {
-      const introspection = schema as IntrospectionQuery
-      if (introspection.__schema) {
-        return buildClientSchema(introspection)
-      }
-      return undefined
-    } catch {
-      return undefined
-    }
-  }, [schema])
-
-  const fetcher = useMemo(() => {
-    if (!endpoint) return () => Promise.resolve({})
-    return async (params: {
-      query: string
-      variables?: Record<string, unknown>
-    }) => {
-      const headers: Record<string, string> = {
-        'Content-Type': 'application/json',
-      }
-      if (token) {
-        headers.Authorization = `Bearer ${token}`
-      }
-      const res = await fetch('/api/graphql-proxy', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          endpoint,
-          query: params.query,
-          variables: params.variables ?? {},
-          headers,
-        }),
-      })
-      return res.json()
-    }
-  }, [endpoint, token])
+  const { setRequestDuration, setLastResponse } = useRequestTiming()
+  const {
+    editorKey,
+    defaultQuery,
+    defaultVariables,
+    showVariablesPanel,
+    handleAddOperation,
+    graphqlSchema,
+    fetcher,
+    storage,
+  } = useGraphiQL(
+    endpoint,
+    token,
+    schema,
+    operations,
+    isConnected,
+    endpointId,
+    setRequestDuration,
+    setLastResponse
+  )
 
   if (!isConnected) {
     return (
@@ -115,20 +72,24 @@ export default function GraphiQLWrapper({
           fetcher={fetcher}
           schema={graphqlSchema}
           defaultQuery={defaultQuery}
-          variables={defaultVariables || undefined}
           defaultEditorToolsVisibility={
             showVariablesPanel ? 'variables' : undefined
           }
-          storage={{
-            getItem: () => null,
-            setItem: () => {},
-            removeItem: () => {},
-            clear: () => {},
-            length: 0,
-          }}
+          storage={storage}
           defaultTheme="dark"
+          toolbar={{
+            additionalContent: <GraphiQLToolbarAddons />,
+          }}
         />
       </div>
     </div>
+  )
+}
+
+export default function GraphiQLWrapper(props: GraphiQLWrapperProps) {
+  return (
+    <RequestTimingProvider>
+      <GraphiQLWrapperInner {...props} />
+    </RequestTimingProvider>
   )
 }

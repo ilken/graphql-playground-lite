@@ -1,75 +1,27 @@
 'use client'
 
 import Link from 'next/link'
-import { useState, useEffect, useCallback } from 'react'
 
-import { getActiveEndpoint, getToken } from '@/lib/storage'
-import type { Endpoint, GeneratedOperation } from '@/lib/types'
+import { usePlayground } from '@/hooks/usePlayground'
+import { getActiveEndpoint } from '@/lib/storage'
+import { useToast } from '@/providers'
 
 import GraphiQLWrapper from './GraphiQLWrapper'
 
 export default function Playground() {
-  const [activeEndpoint, setActiveEndpoint] = useState<Endpoint | null>(null)
-  const [token, setToken] = useState('')
-  const [schema, setSchema] = useState<unknown>(null)
-  const [operations, setOperations] = useState<GeneratedOperation[]>([])
-  const [introspectLoading, setIntrospectLoading] = useState(false)
-  const [introspectError, setIntrospectError] = useState<string | null>(null)
-  const [hasChecked, setHasChecked] = useState(false)
-
-  const loadFromStorage = useCallback(async () => {
-    const endpoint = getActiveEndpoint()
-    const authToken = getToken()
-    if (!endpoint) {
-      setHasChecked(true)
-      return
-    }
-    setIntrospectLoading(true)
-    setIntrospectError(null)
-    try {
-      const headers: Record<string, string> = {
-        'Content-Type': 'application/json',
-      }
-      if (authToken) {
-        headers.Authorization = `Bearer ${authToken}`
-      }
-      const res = await fetch('/api/introspect', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ endpoint: endpoint.url, headers }),
-      })
-      const data = await res.json()
-      if (!res.ok) {
-        throw new Error(data.error ?? 'Introspection failed')
-      }
-      setSchema(data.schema)
-      setOperations(data.operations ?? [])
-      setActiveEndpoint(endpoint)
-      setToken(authToken)
-    } catch (err) {
-      const rawMessage = err instanceof Error ? err.message : 'Failed to connect'
-      const isFetchFailed =
-        rawMessage === 'fetch failed' ||
-        rawMessage === 'Failed to fetch' ||
-        rawMessage.toLowerCase().includes('fetch failed')
-      const endpoint = getActiveEndpoint()
-      const envLabel = endpoint?.name ?? endpoint?.url ?? 'endpoint'
-      setIntrospectError(
-        isFetchFailed
-          ? `Failed to connect to ${envLabel} setup`
-          : rawMessage
-      )
-      setSchema(null)
-      setOperations([])
-    } finally {
-      setIntrospectLoading(false)
-      setHasChecked(true)
-    }
-  }, [])
-
-  useEffect(() => {
-    loadFromStorage()
-  }, [loadFromStorage])
+  const { toast } = useToast()
+  const handleConnected = (endpointName: string) => {
+    toast(`Connected to ${endpointName}`)
+  }
+  const {
+    activeEndpoint,
+    token,
+    schema,
+    operations,
+    introspectLoading,
+    introspectError,
+    hasChecked,
+  } = usePlayground(handleConnected)
 
   if (!hasChecked || introspectLoading) {
     return (
@@ -113,6 +65,7 @@ export default function Playground() {
       <div className="flex min-h-0 flex-1">
         <GraphiQLWrapper
           endpoint={activeEndpoint?.url ?? ''}
+          endpointId={activeEndpoint?.id ?? ''}
           token={token}
           schema={schema}
           operations={operations}

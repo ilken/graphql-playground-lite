@@ -36,6 +36,7 @@ You are a Senior Front-End Developer and an Expert in ReactJS, NextJS, JavaScrip
 - Use descriptive variable and function names; event handlers use "handle" prefix (e.g., `handleClick`, `handleKeyDown`)
 - Implement accessibility: `tabIndex`, `aria-label`, `onClick`, `onKeyDown` where appropriate
 - Use `const` arrow functions instead of `function` declarations (e.g., `const toggle = () => {}`)
+- Always use `type` over `interface` for type definitions (e.g., `type Props = { ... }` not `interface Props { ... }`)
 - Define types when possible
 - Do not use semicolons
 

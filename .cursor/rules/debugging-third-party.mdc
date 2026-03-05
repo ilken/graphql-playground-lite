@@ -1,0 +1,52 @@
+---
+description: Lessons for debugging third-party library integration issues
+alwaysApply: false
+---
+
+# Debugging Third-Party Library Issues
+
+## Check for Nested node_modules First
+
+When a package has peer/direct dependencies, always check for **nested** `node_modules` inside the package folder. Different versions may be resolved:
+
+```
+node_modules/graphiql/                      # graphiql@3.9.0
+  node_modules/@graphiql/react/             # @graphiql/react@0.29.0 (nested)
+node_modules/@graphiql/react/               # @graphiql/react@0.37.3 (top-level)
+```
+
+The nested version is what the package actually uses at runtime. The top-level version is what YOUR code imports. They can have **completely different APIs**.
+
+## Read the Actual Bundled Code
+
+Type definitions (`.d.ts`) may not match the runtime behavior, especially across version mismatches. When debugging prop routing:
+
+1. Read the package's `dist/index.mjs` or `dist/index.js` to see actual runtime behavior
+2. Trace which props are destructured vs spread into `...rest`
+3. Check which child component receives the spread props
+
+## Verify Props Actually Reach Their Target
+
+In wrapper components like `<GraphiQL>` that compose a Provider + Interface:
+
+- Named destructured props go to specific children
+- `...rest` spread props may go to a DIFFERENT child than expected
+- A prop intended for the Provider may end up on the Interface (or vice versa)
+
+Always trace: `Your Code → Wrapper Component → Which Child?`
+
+## Storage-Based Libraries
+
+Many editor libraries (GraphiQL, Monaco, CodeMirror) persist state to `localStorage`. When using `key` prop to force remount:
+
+- The new instance reads from the SAME storage as the old one
+- Passing new props may be overridden by stored values
+- Solution: write to storage BEFORE triggering remount, or clear relevant storage keys
+
+## Version Mismatch Red Flags
+
+Watch for these signs of version mismatch:
+
+- Props that "should work" per docs but have no effect
+- Error messages referencing renamed/removed props
+- Behavior that works on first load but breaks on subsequent interactions (storage kicks in)

@@ -1,0 +1,43 @@
+---
+description: Hooks folder structure and patterns
+alwaysApply: true
+---
+
+# Hooks Rules
+
+## Structure
+
+- All custom React hooks live in the `hooks/` folder
+- Each hook has its own file: `hooks/use{Feature}.ts`
+- Export hooks from `hooks/index.ts`
+
+## Conventions
+
+- Hook files are named `use{Feature}.ts` (e.g., `useGraphiQL.ts`, `usePlayground.ts`)
+- Hooks are named `use{Feature}` (e.g., `useGraphiQL`, `usePlayground`)
+- Use `type` over `interface` for hook return types and parameter types
+- Colocate related state, memos, and callbacks within the same hook
+
+## Key Hooks
+
+| Hook                  | File                        | Purpose                                              |
+|------------------------|----------------------------|------------------------------------------------------|
+| `useGraphiQL`          | `hooks/useGraphiQL.ts`     | GraphiQL editor state, storage, fetcher, schema      |
+| `usePlayground`        | `hooks/usePlayground.ts`   | Endpoint connection, introspection, auth tokens       |
+| `useOperationExplorer` | `hooks/useOperationExplorer.ts` | Search/filter operations list                   |
+| `useConnect`           | `hooks/useConnect.ts`      | Endpoint connection flow                              |
+| `useEndpointManager`   | `hooks/useEndpointManager.ts` | CRUD for saved endpoints                          |
+
+## Dependencies Between Hooks
+
+- `usePlayground` provides `schema`, `operations`, `token`, `activeEndpoint` to `Playground.tsx`
+- `Playground.tsx` passes these down to `GraphiQLWrapper` as props
+- `GraphiQLWrapper` calls `useGraphiQL` with these props
+- `useGraphiQL` returns `handleAddOperation` which is passed to `OperationExplorer`
+- `OperationExplorer` calls `useOperationExplorer` for search/filter, delegates clicks to `handleAddOperation`
+
+## Testing Considerations
+
+When modifying `handleAddOperation` or any hook that interacts with GraphiQL storage:
+- Storage writes must happen BEFORE the `editorKey` increment (remount trigger)
+- The `storage` object from `createLocalStorage` must be in the `useCallback` dependency array if referenced

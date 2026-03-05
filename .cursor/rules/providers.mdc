@@ -1,0 +1,36 @@
+---
+description: Providers folder structure and usage
+alwaysApply: true
+---
+
+# Providers Rule
+
+## Structure
+
+- All React context providers live in the `providers/` folder
+- Each provider has its own file: `providers/{Name}Provider.tsx`
+- A single `Providers` component in `providers/Providers.tsx` composes all providers for the root layout
+- Export providers and hooks from `providers/index.ts`
+
+## Conventions
+
+- Provider components are named `{Feature}Provider` (e.g., `ToastProvider`)
+- Custom hooks for consuming context are named `use{Feature}` (e.g., `useToast`)
+- Keep the provider, its context, and hook in the same file for colocation
+- Use `type` over `interface` for provider props and context value types
+- Mark provider files with `'use client'` when they use React hooks or context
+
+## Usage
+
+- Import `Providers` in the root layout (or top-level client component) and wrap the app
+- Import `use{Feature}` from `@/providers` in components that need the context
+- Add new providers to `Providers.tsx` by nesting them in the desired order
+
+## Example
+
+```
+providers/
+  ToastProvider.tsx   # ToastProvider + useToast
+  Providers.tsx      # Composes all providers
+  index.ts           # Re-exports
+```

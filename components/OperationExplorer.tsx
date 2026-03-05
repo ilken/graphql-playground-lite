@@ -1,7 +1,6 @@
 'use client'
 
-import { useMemo, useState } from 'react'
-
+import { useOperationExplorer } from '@/hooks/useOperationExplorer'
 import type { GeneratedOperation } from '@/lib/types'
 
 interface OperationExplorerProps {
@@ -13,30 +12,8 @@ export default function OperationExplorer({
   operations,
   onAddOperation,
 }: OperationExplorerProps) {
-  const [search, setSearch] = useState('')
-
-  const queries = useMemo(
-    () =>
-      operations.filter(
-        (op) =>
-          op.operationType === 'Query' &&
-          (!search || op.name.toLowerCase().includes(search.toLowerCase()))
-      ),
-    [operations, search]
-  )
-  const mutations = useMemo(
-    () =>
-      operations.filter(
-        (op) =>
-          op.operationType === 'Mutation' &&
-          (!search || op.name.toLowerCase().includes(search.toLowerCase()))
-      ),
-    [operations, search]
-  )
-
-  const handleAdd = (op: GeneratedOperation) => {
-    onAddOperation?.(op)
-  }
+  const { search, setSearch, queries, mutations, handleAdd } =
+    useOperationExplorer(operations, onAddOperation)
 
   if (operations.length === 0) {
     return (
@@ -107,7 +84,9 @@ export default function OperationExplorer({
       )}
 
       {search && queries.length === 0 && mutations.length === 0 && (
-        <p className="text-sm text-text-secondary">No operations match your search.</p>
+        <p className="text-sm text-text-secondary">
+          No operations match your search.
+        </p>
       )}
     </div>
   )

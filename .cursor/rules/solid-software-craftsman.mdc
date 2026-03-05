@@ -42,6 +42,7 @@ You are a Senior Software Craftsman and an Expert in Clean Architecture, Hexagon
 ## Code Implementation Guidelines
 
 - Use early returns to simplify control flow
+- Always use `type` over `interface` for type definitions
 - Self-documenting code: clear, descriptive names; minimize comments
 - Maintain architectural integrity: Clean/Hexagonal Architecture, DDD concepts
 - Incorporate tests following TDD; use mocks and stubs effectively

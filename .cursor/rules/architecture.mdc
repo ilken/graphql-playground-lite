@@ -1,0 +1,44 @@
+---
+description: Application architecture and component data flow
+alwaysApply: true
+---
+
+# Architecture
+
+## Component Hierarchy
+
+```
+app/layout.tsx
+  └── Providers (providers/Providers.tsx)
+        └── AppLayout (components/AppLayout.tsx)
+              ├── Header (components/Header.tsx)
+              ├── NavDrawer (components/NavDrawer.tsx)
+              └── page.tsx
+                    └── Playground (components/Playground.tsx)
+                          └── GraphiQLWrapper (components/GraphiQLWrapper.tsx)
+                                ├── OperationExplorer (sidebar)
+                                └── GraphiQL (from graphiql package)
+```
+
+## Data Flow for Query Execution
+
+1. `usePlayground` connects to endpoint, introspects schema, generates operations
+2. `Playground` passes `schema`, `operations`, `token`, `activeEndpoint` to `GraphiQLWrapper`
+3. `GraphiQLWrapper` wraps in `RequestTimingProvider` and renders `GraphiQLWrapperInner`
+4. `useGraphiQL` hook manages editor key, storage, fetcher, and `handleAddOperation`
+5. `OperationExplorer` sidebar lists queries/mutations; click calls `handleAddOperation`
+6. `handleAddOperation` writes to storage and remounts `<GraphiQL>` via key change
+
+## API Routes
+
+| Route                    | Purpose                          |
+|--------------------------|----------------------------------|
+| `/api/introspect`        | Schema introspection via proxy   |
+| `/api/graphql-proxy`     | GraphQL query execution proxy    |
+| `/api/auth-login`        | Authentication token retrieval   |
+
+## Storage
+
+- `lib/storage.ts` manages `localStorage` for endpoints, tokens, active endpoint
+- GraphiQL uses its own namespaced `localStorage` via `@graphiql/toolkit`'s `createLocalStorage`
+- Namespace format: `graphql-playground:{endpointId}:{key}`

@@ -1,0 +1,108 @@
+---
+description: GraphiQL integration - version compatibility, prop routing, and storage behavior
+globs:
+  - components/GraphiQLWrapper.tsx
+  - hooks/useGraphiQL.ts
+  - components/OperationExplorer.tsx
+  - hooks/useOperationExplorer.ts
+---
+
+# GraphiQL Integration
+
+## Package Versions
+
+This project has TWO versions of `@graphiql/react` installed:
+
+- `@graphiql/react@0.29.0` — nested inside `node_modules/graphiql/node_modules/`, used internally by `graphiql@3.9.0`
+- `@graphiql/react@0.37.3` — top-level `node_modules/`, listed in `package.json`
+
+The `<GraphiQL>` component from `graphiql@3.9.0` uses its **nested** `@graphiql/react@0.29.0` provider. Any code importing directly from `@graphiql/react` uses the top-level `0.37.3`.
+
+## Prop Routing in graphiql@3.9.0
+
+The `GraphiQL` function destructures these named props and passes them to `GraphiQLProvider`:
+
+```
+defaultQuery, defaultTabs, externalFragments, fetcher, headers,
+query, response, schema, storage, validationRules, variables, ...
+```
+
+Everything else goes into `...props` and is spread onto `GraphiQLInterface`.
+
+### What this means
+
+- `query` and `variables` props reach the provider (via @0.29.0)
+- `initialQuery` and `initialVariables` do NOT reach the provider — they fall into `...props` and go to `GraphiQLInterface`, which ignores them
+- `defaultQuery` reaches the provider but is only a last-resort fallback
+
+## Storage Precedence on Mount
+
+The @0.29.0 `EditorContextProvider` initializes state with this priority:
+
+```
+1. props.query       (if passed)
+2. storage.get("query")  (from localStorage via custom storage)
+3. null              (falls through to defaultQuery in getDefaultTabState)
+```
+
+The `getDefaultTabState` function has its own priority:
+
+```
+1. Stored tab state  (storage.get("tabState")) — if exists, restores tabs
+2. defaultTabs       (or [{ query: query ?? defaultQuery, variables, headers }])
+```
+
+Once the user interacts with GraphiQL, tab state is always persisted to storage. After that, `defaultQuery` is effectively ignored on remount.
+
+## Correct Pattern: Injecting a Query into GraphiQL
+
+To programmatically set the GraphiQL editor content when clicking a sidebar operation:
+
+1. **Write** the query and variables to storage using the same keys GraphiQL reads
+2. **Clear** the stored tab state so fresh tabs are created
+3. **Increment** the editor key to force a full remount
+
+```typescript
+const handleAddOperation = useCallback((op: GeneratedOperation) => {
+  // Format the query
+  let formattedQuery = op.query
+  try { formattedQuery = print(parse(op.query)) } catch {}
+
+  // Write to storage BEFORE remount so the provider picks it up
+  storage.setItem('query', formattedQuery)
+  const hasVariables = Object.keys(op.variables).length > 0
+  storage.setItem('variables', hasVariables ? JSON.stringify(op.variables, null, 2) : '')
+  storage.removeItem('tabState')
+
+  // Update React state and trigger remount
+  setDefaultQuery(formattedQuery)
+  setDefaultVariables(hasVariables ? JSON.stringify(op.variables, null, 2) : '')
+  setShowVariablesPanel(hasVariables)
+  setEditorKey((k) => k + 1)
+}, [storage])
+```
+
+Do NOT rely on `defaultQuery`, `initialQuery`, or `query` props alone — storage overrides them once tabs are persisted.
+
+## Storage Keys (from @graphiql/react constants)
+
+GraphiQL wraps our storage in `StorageAPI` from `@graphiql/toolkit`, which adds its own prefix `graphiql:` when calling `getItem`/`setItem`. So when writing directly to our storage (e.g. in `handleAddOperation`), we must use the **prefixed** keys:
+
+| Logical key | Key to use when writing to our storage |
+|-------------|----------------------------------------|
+| query       | `graphiql:query`                       |
+| variables   | `graphiql:variables`                   |
+| tabState    | `graphiql:tabState`                    |
+| headers     | `graphiql:headers`                     |
+
+Our `createLocalStorage` then adds `graphql-playground:{endpointId}:` on top, so the final `localStorage` key is e.g. `graphql-playground:xxx:graphiql:query`.
+
+## Custom Storage Object
+
+The `NOOP_STORAGE` in `useGraphiQL.ts` must match the `Storage` interface (`getItem`, `setItem`, `removeItem`, `clear`, `length`). GraphiQL's provider wraps it in `StorageAPI` which calls `.getItem()` / `.setItem()`.
+
+## Anti-Patterns
+
+- Do NOT pass `initialQuery` / `initialVariables` to `<GraphiQL>` from graphiql@3.9.0 — they never reach the provider
+- Do NOT assume `defaultQuery` overrides stored state — it only applies when storage is empty
+- Do NOT pass `query` or `variables` props to `@graphiql/react@0.37.3` provider — it throws (renamed to `initialQuery` / `initialVariables` in 0.37.x)
